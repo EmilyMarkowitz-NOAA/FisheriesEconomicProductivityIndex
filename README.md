@@ -12,7 +12,7 @@ Seattle, WA 98195
 <sup>2</sup>On detail with the NOAA Fisheries Office of Science and
 Technology Economics & Social Analysis Division
 
-The views expressed are those of the author and should not be attributed to the NOAA, ECS or ERS
+> The views expressed are those of the author and should not be attributed to the NOAA, ECS or ERS
 
 **GitHub:** <https://github.com/emilyhmarkowitz/FishEconProdOutput>
 
