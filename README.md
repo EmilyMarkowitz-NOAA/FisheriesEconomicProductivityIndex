@@ -5,17 +5,14 @@ Measuring Output for U.S. Commercial Fisheries From Theory to Practice
 
 **Sun Ling Wang**<sup>2</sup> (Sun-Ling.Wang AT noaa.gov)
 
-<sup>1</sup>Contractor, ECS Federal in support of NOAA Fisheries Office
-of Science and Technology Economics & Social Analysis Division; as of
-Sept. 28, 2020: Alaska Fisheries Science Center, National Marine
+<sup>1</sup>Alaska Fisheries Science Center, National Marine
 Fisheries Service, National Oceanic and Atmospheric Administration,
 Seattle, WA 98195
 
 <sup>2</sup>On detail with the NOAA Fisheries Office of Science and
 Technology Economics & Social Analysis Division
 
-> \*The views expressed are those of the author and should not be
-> attributed to the NOAA, ECS or ERS
+The views expressed are those of the author and should not be attributed to the NOAA, ECS or ERS
 
 **GitHub:** <https://github.com/emilyhmarkowitz/FishEconProdOutput>
 
