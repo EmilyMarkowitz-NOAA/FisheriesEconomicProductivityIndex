@@ -1,3 +1,5 @@
+
+
 ##########*** Landing Data##############
 landings.data<-read.csv(file = paste0(dir.data, "fis_foss_coastal_ws-foss_landings_mv.csv"))
 write.csv(x = landings.data, file = paste0(dir.rawdata,"fis_foss_coastal_ws-foss_landings_mv.csv"))
@@ -15,7 +17,7 @@ names(landings.data)[names(landings.data) %in% "YEAR"]<-"Year"
 names(landings.data)[names(landings.data) %in% "POUNDS"]<-"Pounds"
 names(landings.data)[names(landings.data) %in% "DOLLARS"]<-"Dollars"
 names(landings.data)[names(landings.data) %in% "COLLECTION"]<-"Collection"
-statereg<-read.csv(file = paste0(dir.data, "statereg.csv"))
+state.codes <- statereg<-read.csv(file = paste0(dir.data, "statereg.csv"))
 landings.data<-merge(x = landings.data, y = statereg, by = "State.no")
 
 # names(landings.data)<-c("X","SS_CODE","TSN","H_OLD_ITIS","H_NEW_ITIS","HM_OLD_ITIS","HM_NEW_ITIS","TS_AFS_NAME",

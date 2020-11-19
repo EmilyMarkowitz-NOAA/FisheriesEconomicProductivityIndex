@@ -1,49 +1,6 @@
 
 #####LOAD CRAN LIBRARIES#######
 
-#Seperating species by taxonomic group
-# install.packages("remotes")
-# remotes::install_github("ropensci/taxize")
-library(taxize)
-
-# Data Managment
-library(tidyr)
-library(reshape2)
-library(tidyverse)
-library(filesstrings)
-library(data.table) # := to tag species codes
-require(plyr)  #ddply function
-library(sas7bdat)
-library(rlist)
-
-#RMarkdown
-library(rmarkdown)
-library(knitr)
-library(gridExtra)
-library(ggpubr)
-library(magrittr)
-library(flextable)
-
-#Excel File Management
-library(officer)
-library(xlsx)
-library(readxl)
-
-#Visuals
-library(ggplot2)
-
-#Package Management
-library(roxygen2)
-library(devtools)
-
-#Presentations
-#remotes::install_github('yihui/xaringan')
-library(xaringan)
-options(htmltools.dir.version = FALSE)
-library(tidyverse)
-library(stargazer)
-
-
 options(java.parameters = "-Xmx1000m")
 options(scipen=10000)
 
@@ -60,6 +17,13 @@ NOAABlueScale<-colorRampPalette(colors = c(NOAALightBlue, NOAADarkBlue))
 
 #########***########
 ######DEALING WITH TOP 10 KEY SPECIES########
+
+simpleCap <- function(x) {
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1,1)), substring(s, 2),
+        sep="", collapse=" ")
+}
+
 tolower2 <- function(str0, capitalizefirst=F) {
   str2<-c()
   
@@ -135,7 +99,7 @@ itis_reclassify<-function(tsn, categories, missing.name){
   
   # Find which codes are in which categories
   tsn0<-as.numeric(tsn)[!(is.na(tsn))]
-  tsn.indata<-classification(x = tsn0, db = 'itis')
+  tsn.indata<-classification(sci_id = tsn0, db = 'itis')
   tsn.indata<-tsn.indata[!(names(tsn.indata) %in% 0)]
   valid0<- sciname<-category0<-bottomrank<-sppname<- TSN<-c() 
   
@@ -187,6 +151,286 @@ itis_reclassify<-function(tsn, categories, missing.name){
   return(list("df.out" = df.out, 
               "tsn.indata" = tsn.indata))
 }
+
+
+spp_reclassify<-function(landings.df, spcat.list, place){
+  
+  ####
+  ####FINFISH AND SHELFISH AND OTHER TOTALS
+  ###
+  
+  temp<-landings.df
+  total.df<-aggregate(temp[,names(temp) %in% c("POUNDS", "DOLLARS")] ,
+                      by=list(year=temp$year),
+                      FUN=sum,na.rm=TRUE)
+  
+  #Finfish
+  temp<-landings.df[landings.df$OFS %in% "F",]
+  if (nrow(temp)!=0) {
+    finfish.df<-aggregate(temp[,names(temp) %in% c("POUNDS", "DOLLARS")] ,
+                          by=list(year=temp$year),
+                          FUN=sum, na.rm=TRUE)
+    
+    if (sum(!(min(landings.df$year):max(landings.df$year) %in% finfish.df$year)) >0){
+      
+      finfish.df<-rbind.data.frame(finfish.df, 
+                                   cbind.data.frame("year" = (min(landings.df$year):max(landings.df$year))[!(min(landings.df$year):max(landings.df$year) %in% other.df$year)], 
+                                                    "POUNDS" = 0, 
+                                                    "DOLLARS" = 0))
+      landings.df<-landings.df[order(landings.df$year),]
+      
+    }
+  } else {
+    finfish.df<-data.frame(year = min(landings.df$year):max(landings.df$year),
+                           POUNDS = 0,
+                           DOLLARS = 0)
+  }
+  
+  #Shellfish
+  temp<-landings.df[landings.df$OFS %in% "S",]
+  if (nrow(temp)!=0) {
+    shellfish.df<-aggregate(temp[,names(temp) %in% c("POUNDS", "DOLLARS")] ,
+                            by=list(year=temp$year),
+                            FUN=sum,na.rm=TRUE)
+    
+    if (sum(!(min(landings.df$year):max(landings.df$year) %in% shellfish.df$year)) >0){
+      
+      shellfish.df<-rbind.data.frame(shellfish.df, 
+                                     cbind.data.frame("year" = (min(landings.df$year):max(landings.df$year))[!(min(landings.df$year):max(landings.df$year) %in% other.df$year)], 
+                                                      "POUNDS" = 0, 
+                                                      "DOLLARS" = 0))
+      shellfish.df<-shellfish.df[order(shellfish.df$year),]
+    }
+  } else {
+    shellfish.df<-data.frame(year = min(landings.df$year):max(landings.df$year),
+                             POUNDS = 0,
+                             DOLLARS = 0)
+  }
+  
+  
+  #Other
+  temp<-landings.df[landings.df$OFS %in% "O",]
+  if (nrow(temp)!=0) {
+    other.df<-aggregate(temp[,names(temp) %in% c("POUNDS", "DOLLARS")] ,
+                        by=list(year=temp$year),
+                        FUN=sum,na.rm=TRUE)
+    
+    if (sum(!(min(landings.df$year):max(landings.df$year) %in% other.df$year)) > 0){
+      
+      other.df<-rbind.data.frame(other.df, 
+                                 cbind.data.frame("year" = (min(landings.df$year):max(landings.df$year))[
+                                   !(min(landings.df$year):max(landings.df$year) %in% other.df$year)], 
+                                   "POUNDS" = 0, 
+                                   "DOLLARS" = 0))
+      other.df<-other.df[order(other.df$year),]
+    }
+  } else {
+    other.df<-data.frame(year = min(landings.df$year):max(landings.df$year),
+                         POUNDS = 0,
+                         DOLLARS = 0)
+  }
+  
+  
+  land.df<-land.tot<-cbind.data.frame("Total" = total.df$POUNDS,
+                                      "Finfish" = finfish.df$POUNDS,
+                                      "Shellfish" = shellfish.df$POUNDS,
+                                      "Other" = other.df$POUNDS,
+                                      "Key Species" = NA)
+  rev.df<-rev.tot<-cbind.data.frame("Total" = total.df$DOLLARS,
+                                    "Finfish" = finfish.df$DOLLARS,
+                                    'Shellfish' = shellfish.df$DOLLARS,
+                                    "Other" = other.df$DOLLARS,
+                                    "Key Species" = NA)
+  price.df<-price.tot<-cbind.data.frame("Key Species" = rep_len(x = NA, length.out = nrow(rev.df)))
+  
+  
+  ####
+  ####SPECIES
+  ###
+  uniquespp<-data.frame()
+  
+  
+  if (!(is.na(spcat.list))) {
+    temp<-itis_reclassify(tsn = as.numeric(paste(unique(landings.df$TSN))), 
+                          categories = spcat.list$Areas[place][[1]], 
+                          missing.name="Uncategorized")
+    
+    tsn.id<-temp[1][[1]]
+    # tsn.id<-tsn.id[!(tsn.id$category %in% c("Other", "Uncategorized")), 
+    #                c("TSN", "category")]
+    tsn.id<-tsn.id[!(tsn.id$category %in% c("Uncategorized", "Other")),]
+    
+    
+    land.df<-data.frame(t(land.df))
+    rev.df<-data.frame(t(rev.df))
+    price.df<-data.frame(t(price.df))
+    
+    
+    #Add species to tables
+    land.df$Footnotes<-rev.df$Footnotes<-price.df$Footnotes<-""
+    
+    for (i in 1:length(names(spcat.list$Areas[place][[1]]))) {
+      
+      spp0<-sort(names(spcat.list$Areas[place][[1]]))[i]
+      
+      temp<-landings.df[landings.df$TSN %in% tsn.id$TSN[tsn.id$category %in% spp0],]
+      # temp<-temp[!(is.na(temp$POUNDS) & is.na(temp$DOLLARS)), ]
+      
+      #FOOTNOTES
+      Footnotes<-""
+      
+      #Species that should be included in this sum and footnote
+      sppno<-as.numeric(unlist(spcat.list$Areas[place][[1]][spp0]))
+      spp<-tsn.indata.foot<-classification(sci_id = sppno[sppno>0], db = 'itis')
+      sppnames<-taxspp(spp = tsn.indata.foot, spp0, landings.df)
+      species<-sppnames$species
+      notspecies<-sppnames$notspecies
+      
+      spp00<-strsplit(x = spp0, split = ",")
+      spp00<-strsplit(x = spp00[[length(spp00)]], split = "and")
+      spp00<-gsub(x = unlist(spp00), pattern = "and ", replacement = "", ignore.case = T)
+      spp00<-gsub(x = unlist(spp00), pattern = "& ", replacement = "", ignore.case = T)
+      spp00<-trimws(spp00)
+      
+      
+      if (!(is.null(species)) && !(tolower(species) %in% tolower(spp00))) {        #If species names the few specific species in the group, then dont footnote
+        Footnotes<-""
+        #If a specific species (and not a gorup) #No Footnote required
+      } else if (length(spp) == 1 & !(spp[[1]]$rank[nrow(spp[[1]])] %in% "species") ) { #If there is only 1 code and its not a specific species
+        Footnotes<-paste0("This species group includes species within the ",
+                          paste0(ifelse(spp[[1]]$rank[nrow(spp[[1]])] %in% "genus",
+                                        paste0("*", (spp[[1]]$name[nrow(spp[[1]])]), "*"),
+                                        tolower(spp[[1]]$name[nrow(spp[[1]])])) ,
+                                 " ", spp[[1]]$rank[nrow(spp[[1]])]), ".")
+      } else if (length(spp) > 1) {
+        
+        
+        if (length(species)>0 & length(notspecies)>0) {
+          Footnotes<-paste0("This species group includes species within the ",
+                            funct_list(notspecies), " and ", funct_list(species) , ".")
+        } else if (length(species)==0 & length(notspecies)>0) {
+          Footnotes<-paste0("This species group includes species within the ",
+                            funct_list(notspecies), ".")
+        } else if (length(species)>0 & length(notspecies)==0) {
+          Footnotes<-paste0("This species group includes ",
+                            funct_list(species) , ".")
+        }
+      }
+      #Species that should be excluded from this sum and footnote
+      if (sum(sppno<0)>0) {
+        spp<-tsn.indata.foot<-classification(sci_id = (sppno[sppno<0])*-1, db = 'itis')
+        sppnames<-taxspp(spp = tsn.indata.foot, spp0, landings.df)
+        species<-sppnames$species
+        notspecies<-sppnames$notspecies
+        
+        if (length(tsn.indata.foot)>1) {
+          if (length(species)>0 & length(notspecies)>0) {
+            Footnotes<-paste0(Footnotes, " This species group excludes species within the ",
+                              funct_list(notspecies), " and, specifically, ", funct_list(species) , ".")
+          } else if (length(species)==0 & length(notspecies)>0) {
+            Footnotes<-paste0(Footnotes, " This species group excludes species within the ",
+                              funct_list(notspecies), ".")
+          } else if (length(species)>0 & length(notspecies)==0) {
+            Footnotes<-paste0(Footnotes, " This species group excludes ",
+                              funct_list(species) , ".")
+          }
+        }
+      }
+      
+      #COMPILE TABLES
+      
+      if (nrow(temp) %in% 0) {
+        land.df<-rbind.data.frame(land.df, 
+                                  c(rep_len(x = NA, length.out = (ncol(land.df)-1)), Footnotes))
+        rev.df<-rbind.data.frame(rev.df, 
+                                 c(rep_len(x = NA, length.out = (ncol(land.df)-1)), Footnotes))
+        price.df<-rbind.data.frame(price.df, 
+                                   c(rep_len(x = NA, length.out = (ncol(land.df)-1)), Footnotes))
+        
+      } else {
+        
+        #Unique Species
+        uniquespp0<-unique(temp[,c("TSN", "CommonName")])
+        uniquespp0$Category<-spp0
+        uniquespp0$CommonName1<-funct_list(spp00)
+        uniquespp<-rbind.data.frame(uniquespp, uniquespp0)  
+        
+        
+        
+        temp.df<-aggregate(temp[,names(temp) %in% c("POUNDS", "DOLLARS")] , 
+                           by=list(year=temp$year), 
+                           FUN=sum,na.rm=TRUE)
+        
+        #make sure columns match
+        if (sum((!(min(landings.df$year):max(landings.df$year) %in% temp.df$year)) >0)) {
+          yr0<-(min(landings.df$year):max(landings.df$year))[!(min(landings.df$year):max(landings.df$year) %in% temp.df$year)]
+          temp.df<-rbind.data.frame(temp.df, 
+                                    cbind.data.frame('year' = yr0, 
+                                                     'POUNDS' = rep_len(x = NA, length.out = length(yr0)), 
+                                                     'DOLLARS' = rep_len(x = NA, length.out = length(yr0))))
+        }
+        temp.df<-temp.df[order(temp.df$year, decreasing = F),]
+        
+        land.df<-rbind.data.frame(land.df, 
+                                  c(temp.df$POUNDS, Footnotes))
+        rev.df<-rbind.data.frame(rev.df, 
+                                 c(temp.df$DOLLARS, Footnotes))
+        price.df<-rbind.data.frame(price.df, 
+                                   c(temp.df$POUNDS/temp.df$DOLLARS, Footnotes))
+        
+      }
+      
+      rownames(land.df)[length(rownames(land.df))]<-
+        rownames(rev.df)[length(rownames(rev.df))]<-
+        rownames(price.df)[length(rownames(price.df))]<-tolower2(spp0, capitalizefirst = T)  
+    }
+    
+    
+    
+    uniquespp$Area<-place
+    uniquespp$SciName<-""
+    a<-classification(sci_id = uniquespp$TSN, db = 'itis')
+    for (i in 1:nrow(uniquespp)){
+      if (a[i][[1]]$rank[nrow(a[i][[1]])] %in% "species") {
+        uniquespp$SciName[i]<-a[i][[1]]$name[nrow(a[i][[1]])]
+      } else {
+        uniquespp$SciName[i]<-paste0(a[i][[1]]$name[nrow(a[i][[1]])], " ", a[i][[1]]$rank[nrow(a[i][[1]])])
+      }
+    } 
+    
+    
+    land.df<-cbind.data.frame(rownames(land.df), land.df)
+    rev.df<-cbind.data.frame(rownames(rev.df), rev.df)
+    price.df<-cbind.data.frame(rownames(price.df), price.df)
+    
+  } else {
+    
+    land.df<-t(land.df)
+    land.df<-cbind.data.frame("keyspecies" = rownames(land.df)[-nrow(land.df)], 
+                              land.df[-nrow(land.df),], 
+                              Footnotes = NA)
+    rev.df<-t(rev.df)
+    rev.df<-cbind.data.frame("keyspecies" = rownames(rev.df)[-nrow(rev.df)], 
+                             rev.df[-nrow(rev.df),], 
+                             Footnotes = NA)
+    price.df<-t(price.df)
+    price.df<-cbind.data.frame("keyspecies" = NA, 
+                               price.df, 
+                               Footnotes = NA)
+  }
+  
+  colnames(land.df)<-colnames(rev.df)<-colnames(price.df)<-c("keyspecies", 
+                                                             as.character(min(landings.df$year):
+                                                                            max(landings.df$year)), 
+                                                             "Footnotes")
+  
+  #####footnote with species
+  return(list("revenue" = rev.df, 
+              "landings" = land.df, 
+              "price" = price.df, 
+              "uniquespp" = uniquespp))
+}
+
 
 
 ######***GENERAL########
@@ -588,8 +832,13 @@ CreateMetadata<-function(dir.out, title){
 
 OutputAnalysis<-function(landings.data, category0, baseyr, 
                          state.codes, titleadd,
-                         counter, dir.rawdata, dir.reports, pctmiss, dir.figures, dir.outputtables, analysisby = "P", 
-                         MinimumNumberOfSpecies = 5) {
+                         counter, dir.rawdata, dir.reports, pctmiss, dir.figures, 
+                         dir.outputtables, analysisby = "P", 
+                         MinimumNumberOfSpecies = 5, 
+                         reg.order = c("National", "North Pacific", "Pacific", "Western Pacific (Hawai`i)", "New England", 
+                                       "Mid-Atlantic", "Northeast", "South Atlantic", "Gulf of Mexico"), 
+                         reg.order0 = c("US", "NP", "Pac", "WP", "NE", "MA", "SA", "GOM", "NorE"), 
+                         skipplots = F) {
   
   dir.analyses1<-paste0(dir.analyses, "/",titleadd, "_", analysisby, "_", 
                         gsub(pattern = "\\.", replacement = "", x = category0), "_pctmiss", 
@@ -602,8 +851,6 @@ OutputAnalysis<-function(landings.data, category0, baseyr,
   dir.outputtables<-paste0(dir.analyses1, "/outputtables/")
   dir.create(paste0(dir.analyses1, "/outputtables/")) 
   
-  reg.order<-c("National", "North Pacific", "Pacific", "Western Pacific (Hawai`i)", "New England", "Mid-Atlantic", "Northeast", "South Atlantic", "Gulf of Mexico") 
-  reg.order0<-c("US", "NP", "Pac", "WP", "NE", "MA", "SA", "GOM", "NorE")
   
   #Save Stuff
   editeddata.list<-list()
@@ -814,6 +1061,7 @@ OutputAnalysis<-function(landings.data, category0, baseyr,
                              function(x) x[2])))
   gridfigures.list<-list()
   
+  # if (length(r)>1){
   for (i in 1:length(figs)){
     
     a<-strsplit(x = names(figures.list)[i], split = "_")[[1]][length(strsplit(x = names(figures.list)[i], split = "_")[[1]])]
@@ -844,12 +1092,13 @@ OutputAnalysis<-function(landings.data, category0, baseyr,
     names(gridfigures.list)[length(gridfigures.list)]<-paste0("000_All_byr",baseyr,
                                                               "_",gsub(pattern = "\\.", replacement = "", x = category0), fig)
   }
-  
-  save(gridfigures.list,
-       file = paste0(dir.figures, "AllFiguresGrid.rdata"))
-  
-  
-  
+    save(gridfigures.list,
+         file = paste0(dir.figures, "AllFiguresGrid.rdata"))
+  # } else {
+  # 
+  # 
+  # 
+  # 
   #   #make single plots
   #   for (i in 1:length(figures.list)) {
   #     print(paste0(names(figures.list)[i]))
@@ -862,17 +1111,20 @@ OutputAnalysis<-function(landings.data, category0, baseyr,
   #            plot = figures.list[[i]],
   #            width = 11, height = 8.5)
   # }
-  
+  # }
 }
+
 
 #########***########
 ##########LOAD DATA##############
 
+##########*** Reg Order##############
+reg.order<-c("National", "North Pacific", "Pacific", "Western Pacific (Hawai`i)", "New England", "Mid-Atlantic", "Northeast", "South Atlantic", "Gulf of Mexico")
+  
 ##########*** State Codes##############
 state.codes <- statereg <- read.csv(paste0(dir.data, '/statereg.csv'), stringsAsFactors = FALSE)
 write.csv(x = state.codes, file = paste0(dir.rawdata, "/statereg.csv"))
 
 
-##########*** Reg Order##############
-reg.order<-c("National", "North Pacific", "Pacific", "Western Pacific (Hawai`i)", "New England", "Mid-Atlantic", "Northeast", "South Atlantic", "Gulf of Mexico") 
+
 

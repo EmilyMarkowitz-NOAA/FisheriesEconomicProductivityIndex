@@ -1022,21 +1022,31 @@
   itis_reclassify<-function(tsn, categories, missing.name){
     
     # Find which codes are in which categories
-    
-    tsn.indata<-classification(tsn[!(is.na(tsn))], db = 'itis')
+    tsn0<-as.numeric(tsn)[!(is.na(tsn))]
+    tsn.indata<-classification(sci_id = tsn0, db = 'itis')
     tsn.indata<-tsn.indata[!(names(tsn.indata) %in% 0)]
     valid0<- sciname<-category0<-bottomrank<-sppname<- TSN<-c() 
     
+    TSN<-c()
+    bottomrank<-c()
+    category0<-c()
+    sciname<-c()
+    valid0<-c()
+    
+    
     for (i in 1:length(categories)) {
       
-      a<-c()
-      for (ii in 1:length(categories[i][[1]])) {
-        a<-c(a, list.search(lapply(X = tsn.indata, '[[', 3), categories[i][[1]][[ii]] %in% . ))
-      }
+      a<-list.search(lapply(X = tsn.indata, '[', 3), categories[i][[1]] %in% . )
+      
+      # for (ii in 1:length(categories[i][[1]])) {
+      # a<-c(a, list.search(lapply(X = tsn.indata, '[', 3), categories[i][[1]][[ii]] %in% . ))
+      # }
       
       if (length(a)!=0) {
         
         sppcode<-names(a)
+        sppcode<-gsub(pattern = "[a-zA-Z]+", replacement = "", x = sppcode)
+        sppcode<-gsub(pattern = "\\.", replacement = "", x = sppcode)
         
         for (ii in 1:length(sppcode)) {
           TSN<-c(TSN, sppcode[ii])
@@ -1056,108 +1066,14 @@
       }
     }
     
-    # for (i in 1:length(tsn.indata)){
-    #   TSN[i]<-names(tsn.indata)[i]
-    #   if (is.na(tsn.indata[[i]])[1]) {
-    #     category0[i]<-"Other"
-    #     
-    #     #Is any number of the taxonomic classification in the listed categories?
-    #   } else if ( sum(as.numeric(tsn.indata[[i]]$id) %in% (as.numeric(unlist(categories))))>0 ) {
-    # 
-    #     idx<-sort(as.numeric(unlist(categories))[abs((as.numeric(unlist(categories)))) %in%
-    #                                                as.numeric(tsn.indata[[i]]$id)],
-    #               decreasing = F)
-    #     
-    #     for (ii in 1:length(idx)) {
-    #       
-    #       if (idx[ii] > 0) { # If there is 1 positive category code
-    #         category0[i]<-gsub(pattern = "[0-9]+", replacement = "", 
-    #                                   x = names(unlist(categories)[as.numeric(unlist(categories)) %in% idx[ii] ]) )       
-    #         bottomrank[i]<-tsn.indata[[i]]$rank[nrow(tsn.indata[[i]])]
-    #         sciname[i]<-tsn.indata[[i]]$name[nrow(tsn.indata[[i]])]
-    #       }
-    #     }
-    #     
-    #   }
-    #   
-    #   
-    #   if (is.na(tsn.indata[[i]])[1]) {
-    #     valid0[i]<-"NA"
-    #   } else if (nrow(tsn.indata[[i]]) %in% 1 &&
-    #              !(tsn.indata[[i]]$rank %in% "kingdom")) {
-    #     valid0[i]<-"invalid"
-    #   }
-    #   
-    # }
-    
     df.out<-data.frame(TSN = TSN, 
                        category = category0, 
                        valid = valid0, 
                        rank = bottomrank, 
                        sciname = sciname )
     
-    return(list(df.out, tsn.indata))
-  }
-  
-  
-  temp<-itis_reclassify(tsn = as.numeric(paste0(unique(commercial.data$TSN))), 
-                        categories = list("Shellfish" = spcat.list$General$Shellfish, 
-                                          "Finfish" = spcat.list$General$Finfish), 
-                        missing.name="Uncategorized")
-  tsn.id<-temp[1][[1]]
-  
-  if (sum(tsn.id$category %in% c("Other", "Uncategorized"))>0) {
-    tsn.id<-tsn.id[!(tsn.id$category %in% c("Other", "Uncategorized")), 
-                   c("TSN", "category")]
-  }
-  
-
-  
-  taxspp<-function(spp, spp0, landings.df){
-    species<-c()
-    notspecies<-c()
-    for (ii in 1:length(spp)){
-      if (spp[[ii]]$rank[nrow(spp[[ii]])] %in% "species") {
-        
-        #Find common name
-        a<-unique(landings.df$CommonName[landings.df$TSN %in% as.numeric(names(spp[ii]))])
-        a<-a[is.na(as.numeric(a))]
-        # SPECIES_CROSS_REFERENCE <- read.csv(paste0(
-        #   'C:/Users/Emii/Documents/Homework/FEUS/2018/FEUS2018Commercial/data/SPECIES_CROSS_REFERENCE.csv'),
-        #   header=TRUE, stringsAsFactors = FALSE)
-        # a<-unique(SPECIES_CROSS_REFERENCE$AFS_NAME[SPECIES_CROSS_REFERENCE$ITIS %in% as.numeric(names(spp[ii]))])
-        if (!(length(a) %in% 0)) {
-          b<-strsplit(x = a, split = ",")[[1]]
-          # b<-gsub(pattern = ", Na", replacement = "", x = b)
-          c0<-ifelse(length(b) > 1, paste0(b[2], " ", b[1]), b)
-          c0<-gsub(pattern = "  ", replacement = " ", x = c0)
-          c0<-tolower2(c0, capitalizefirst = T)
-          c0<-gsub(pattern = "spp", replacement = "spp.", x = c0)
-          c0<-ifelse(grepl(pattern = "spp.", x = c0) &
-                       grepl(pattern = spp0, x = c0, ignore.case = T),
-                     gsub(pattern = spp0, replacement = "", x = c0, ignore.case = T),
-                     c0)
-          # c0<-ifelse(bottomrank[i] %in% "genus" & !(grepl(pattern = "spp.", x = c0)),
-          #            paste0(c0, " spp."), c0)
-          c0<-trimws(c0)
-          c0<-tolower2(c0, capitalizefirst = F)
-          # commonname[i]<-c0
-          species<-c(species,
-                     paste0(tolower2(unique(c0))))
-        }
-        
-      }
-      
-      if (!(spp[[ii]]$rank[nrow(spp[[ii]])] %in% "species")) {
-        notspecies<-c(notspecies,
-                      paste0(ifelse(spp[[ii]]$rank[nrow(spp[[ii]])] %in% "genus",
-                                    paste0("*", (spp[[ii]]$name[nrow(spp[[ii]])]), "*"),
-                                    tolower(spp[[ii]]$name[nrow(spp[[ii]])])) ,
-                             " ", spp[[ii]]$rank[nrow(spp[[ii]])]))
-      }
-    }
-    return(list("species" = species, 
-                "notspecies" = notspecies))
+    return(list("df.out" = df.out, 
+                "tsn.indata" = tsn.indata))
   }
   
   
@@ -1289,7 +1205,7 @@
         
         #Species that should be included in this sum and footnote
         sppno<-as.numeric(unlist(spcat.list$Areas[place][[1]][spp0]))
-        spp<-tsn.indata.foot<-classification(x = sppno[sppno>0], db = 'itis')
+        spp<-tsn.indata.foot<-classification(sci_id = sppno[sppno>0], db = 'itis')
         sppnames<-taxspp(spp = tsn.indata.foot, spp0, landings.df)
         species<-sppnames$species
         notspecies<-sppnames$notspecies
@@ -1326,7 +1242,7 @@
         }
         #Species that should be excluded from this sum and footnote
         if (sum(sppno<0)>0) {
-          spp<-tsn.indata.foot<-classification(x = (sppno[sppno<0])*-1, db = 'itis')
+          spp<-tsn.indata.foot<-classification(sci_id = (sppno[sppno<0])*-1, db = 'itis')
           sppnames<-taxspp(spp = tsn.indata.foot, spp0, landings.df)
           species<-sppnames$species
           notspecies<-sppnames$notspecies
@@ -1394,15 +1310,15 @@
       }
       
       
-      
       uniquespp$Area<-place
       uniquespp$SciName<-""
-      a<-classification(x = uniquespp$TSN, db = 'itis')
-      for (i in 1:nrow(uniquespp)){
-        if (a[i][[1]]$rank[nrow(a[i][[1]])] %in% "species") {
-          uniquespp$SciName[i]<-a[i][[1]]$name[nrow(a[i][[1]])]
+      a<-classification(sci_id = uniquespp$TSN, db = 'itis')
+      for (ii in 1:length(uniquespp)){
+        if (a[ii][[1]]$rank[nrow(a[ii][[1]])] %in% "species") {
+          uniquespp$SciName[ii]<-a[ii][[1]]$name[nrow(a[ii][[1]])]
         } else {
-          uniquespp$SciName[i]<-paste0(a[i][[1]]$name[nrow(a[i][[1]])], " ", a[i][[1]]$rank[nrow(a[i][[1]])])
+          uniquespp$SciName[ii]<-paste0(a[ii][[1]]$name[nrow(a[ii][[1]])], " ", 
+                                        a[ii][[1]]$rank[nrow(a[ii][[1]])])
         }
       } 
       
@@ -1439,4 +1355,66 @@
                 "uniquespp" = uniquespp))
   }
   
+  temp<-itis_reclassify(tsn = as.numeric(paste0(unique(commercial.data$TSN))), 
+                        categories = list("Shellfish" = spcat.list$General$Shellfish, 
+                                          "Finfish" = spcat.list$General$Finfish), 
+                        missing.name="Uncategorized")
+  tsn.id<-temp[1][[1]]
+  
+  if (sum(tsn.id$category %in% c("Other", "Uncategorized"))>0) {
+    tsn.id<-tsn.id[!(tsn.id$category %in% c("Other", "Uncategorized")), 
+                   c("TSN", "category")]
+  }
+  
+
+  
+  taxspp<-function(spp, spp0, landings.df){
+    species<-c()
+    notspecies<-c()
+    for (ii in 1:length(spp)){
+      if (spp[[ii]]$rank[nrow(spp[[ii]])] %in% "species") {
+        
+        #Find common name
+        a<-unique(landings.df$CommonName[landings.df$TSN %in% as.numeric(names(spp[ii]))])
+        a<-a[is.na(as.numeric(a))]
+        # SPECIES_CROSS_REFERENCE <- read.csv(paste0(
+        #   'C:/Users/Emii/Documents/Homework/FEUS/2018/FEUS2018Commercial/data/SPECIES_CROSS_REFERENCE.csv'),
+        #   header=TRUE, stringsAsFactors = FALSE)
+        # a<-unique(SPECIES_CROSS_REFERENCE$AFS_NAME[SPECIES_CROSS_REFERENCE$ITIS %in% as.numeric(names(spp[ii]))])
+        if (!(length(a) %in% 0)) {
+          b<-strsplit(x = a, split = ",")[[1]]
+          # b<-gsub(pattern = ", Na", replacement = "", x = b)
+          c0<-ifelse(length(b) > 1, paste0(b[2], " ", b[1]), b)
+          c0<-gsub(pattern = "  ", replacement = " ", x = c0)
+          c0<-tolower2(c0, capitalizefirst = T)
+          c0<-gsub(pattern = "spp", replacement = "spp.", x = c0)
+          c0<-ifelse(grepl(pattern = "spp.", x = c0) &
+                       grepl(pattern = spp0, x = c0, ignore.case = T),
+                     gsub(pattern = spp0, replacement = "", x = c0, ignore.case = T),
+                     c0)
+          # c0<-ifelse(bottomrank[i] %in% "genus" & !(grepl(pattern = "spp.", x = c0)),
+          #            paste0(c0, " spp."), c0)
+          c0<-trimws(c0)
+          c0<-tolower2(c0, capitalizefirst = F)
+          # commonname[i]<-c0
+          species<-c(species,
+                     paste0(tolower2(unique(c0))))
+        }
+        
+      }
+      
+      if (!(spp[[ii]]$rank[nrow(spp[[ii]])] %in% "species")) {
+        notspecies<-c(notspecies,
+                      paste0(ifelse(spp[[ii]]$rank[nrow(spp[[ii]])] %in% "genus",
+                                    paste0("*", (spp[[ii]]$name[nrow(spp[[ii]])]), "*"),
+                                    tolower(spp[[ii]]$name[nrow(spp[[ii]])])) ,
+                             " ", spp[[ii]]$rank[nrow(spp[[ii]])]))
+      }
+    }
+    return(list("species" = species, 
+                "notspecies" = notspecies))
+  }
+  
+  
+
   

@@ -10,14 +10,29 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, error = FALSE, message = FALSE, warning = FALSE)
-designflowin<-FALSE
 ```
 
-## Productivity Output Index
+## Fishery Productivity Output Price Index
+
+```{r}
+maxyr.nextchunk<-as.numeric(paste0(ceiling(((maxyr)/10)), 
+                        ifelse(substr(maxyr, 
+                                      start = nchar((maxyr)), 
+                                      stop = nchar((maxyr-29)))<5, 5, 0)))
+baseyr.nextchunk<-as.numeric(paste0(floor(maxyr.nextchunk/10), 
+                            ifelse(substr(maxyr.nextchunk, start = nchar(maxyr.nextchunk), 
+                                          stop = nchar(maxyr.nextchunk))>=5, 5, 0)))
+minyr.data.nextchunk<-as.numeric(paste0(floor((maxyr.nextchunk-24)/10), 
+                            ifelse(substr(maxyr.nextchunk, start = nchar((maxyr.nextchunk-24)), 
+                                          stop = nchar((maxyr.nextchunk-24)))>=5, 6, 1)))
+```
+
+
+Below are tables which show fishery value estimates at both national and regional levels based on  commercial fishery landing data. The tables show inflation adjusted (i.e. real) landings value over a 20 year time period by region, along with the associated regional price indices used to derive the real values. In addition, a third table presents national nominal value, real value and the price index for shellfish, finfish and total landings. Price indices were calculated as chained Törnqvist indices over a 25 year period, which were then converted to a base year index with `r baseyr` as the base time period. The data window and base year will be adjusted every 5 years (such that in the `r maxyr.nextchunk` edition of the report, the base year will be `r baseyr.nextchunk` and the minimum year of the data used in the analysis will be `r minyr.data.nextchunk` to ensure consistency between editions of the Fisheries Economics of the US report. 
+
+
 
 ```{r p1}
-minyr<-2009
-maxyr<-2018
 
 dir.in<-dirname(getwd())
 dir.data<-dir.rawdata<-paste0(dir.in, "/data/")
@@ -29,8 +44,8 @@ ProdI.Report<-paste0(dir.scripts, "ProductivityIndex_Report.rmd")
 
 # aaa<-unlist(unique(lapply(fold0, `[[`, 1)))
 
-library(devtools)
-devtools::install_github("emilyhmarkowitz/FishEconProdOutput", dependencies = TRUE)
+# library(devtools)
+# devtools::install_github("emilyhmarkowitz/FishEconProdOutput", dependencies = TRUE)
 library(FishEconProdOutput)
 
 ### SOURCE FILES AND DATA #####
@@ -40,7 +55,7 @@ ProdI.Funct<-paste0(dir.scripts, "ProductivityIndex_Functions.R")
 source(ProdI.Funct)
 
 aa<-list.files(path = paste0(dir.analyses), 
-                           pattern = paste0(minyr, "To", maxyr, "_FS"), 
+                           pattern = paste0(minyr, "To", maxyr, "_FSFEUS"), 
                            full.names = TRUE)
 
 bb<-list.files(path = paste0(aa, "/outputtables/"), full.names = TRUE, pattern = "000_All")
@@ -50,21 +65,30 @@ bb<-list.files(path = paste0(aa, "/outputtables/"), full.names = TRUE, pattern =
 
 ```
 
+\newpage
 
-#### Table [1]. Regional Landing Values, `r minyr`-`r maxyr` (Implicit Quantity in `r maxyr` $ Million)
+#### Table [1]. Regional Landing Values, `r minyr`-`r maxyr` (Implicit Quantity in `r baseyr` $ Million)
 
 ```{r p3}
 
 a<-data.frame(Year = minyr:maxyr)
 for (i in 2:length(reg.order)){
   temp<-read.xlsx(file = bb[grep(pattern = "_FinalOutput", x = bb)], sheetName = reg.order[i])
-  a<-cbind.data.frame(a, temp[,names(temp) %in% "QI_Total"])
+  temp<-temp[temp$Year %in% c(minyr:maxyr), ]
+  a0<-data.frame(temp[,names(temp) %in% paste0("Q_", idx)])
+  names(a0)<-reg.order[i]
+  a<-cbind.data.frame(a, a0)
 }
-names(a)<-c("Year", reg.order[2:length(reg.order)])
-a$Northeast<-NULL
-names(a)<-gsub(pattern = " \\(Hawai`i\\)", replacement = "", x = names(a))
+# names(a)<-c("Year", reg.order[2:length(reg.order)])
+if (NortheastTFs == T){
+  a$Northeast<-NULL
+}
+# names(a)<-gsub(pattern = " \\(Hawai`i\\)", replacement = "", x = names(a))
 
-a[,2:ncol(a)]<-round(x = a[,2:ncol(a)], digits = 2)
+a[,2:ncol(a)]<-round(x = a[,2:ncol(a)]/1e6, digits = 2)
+
+# a<-a[order(a$Year, decreasing = TRUE),]
+
 
 if (designflowin %in% F){
   # print(a %>%
@@ -80,24 +104,34 @@ if (designflowin %in% F){
    theme_box()# %>% autofit()
   
 }
+
+write.csv(x = a, file = paste0(dir.temp, "T1_RegionalLandingValues.csv"))
 ```
 
+\newpage
 
-#### Table [2]. Regional Price Index, `r minyr`-`r maxyr` (`r maxyr` = 1)
+
+#### Table [2]. Regional Price Index, `r minyr`-`r maxyr` (`r baseyr` = 1)
 
 ```{r p4}
 
 a<-data.frame(Year = minyr:maxyr)
 for (i in 2:length(reg.order)){
   temp<-read.xlsx(file = bb[grep(pattern = "_FinalOutput", x = bb)], sheetName = reg.order[i])
-  a<-cbind.data.frame(a, temp[,names(temp) %in% "PI_Total"])
+  temp<-temp[temp$Year %in% c(minyr:maxyr), ]
+  a0<-data.frame(temp[,names(temp) %in% paste0("PI_", idx)])
+  names(a0)<-reg.order[i]
+  a<-cbind.data.frame(a, a0)
 }
-names(a)<-c("Year", reg.order[2:length(reg.order)])
-
-a$Northeast<-NULL
+if (NortheastTFs == T){
+  a$Northeast<-NULL
+}
 names(a)<-gsub(pattern = " \\(Hawai`i\\)", replacement = "", x = names(a))
 
 a[,2:ncol(a)]<-round(x = a[,2:ncol(a)], digits = 2)
+
+# a<-a[order(a$Year, decreasing = TRUE),]
+
 
 if (designflowin %in% F){
   # print(a %>%
@@ -112,99 +146,126 @@ if (designflowin %in% F){
    theme_box()# %>% autofit()
   
 }
+
+write.csv(x = a, file = paste0(dir.temp, "T2_RegionalPriceIndex.csv"))
+
 ```
 
+\newpage
 
-#### Table [3]. National Landing Values (Implicit Quantity in `r maxyr` $ Million) and Price Index, (`r maxyr` = 1), `r minyr`-`r maxyr` 
+
+#### Table [3]. National Nominal Value (in `r baseyr` $ Million), Price Index, (`r baseyr` = 1), and Landing Values (Implicit Quantity in `r baseyr` $ Million), `r minyr`-`r maxyr` 
 
 ```{r p5}
 
-keydatatable<-function(Date0, yr, maxyr, folderpattern, dir.output) {
+Date0 = Sys.Date()
+yr = minyr
+maxyr = maxyr
+folderpattern = "FSFEUS"
+
+
   outputrun<-list.files(path = dir.output, pattern = as.character(Date0), full.names = TRUE)
+  
   a<-list.files(path = (list.files(path = paste0(outputrun, "/analyses/"), full.names = TRUE, pattern = paste0(yr, "To", maxyr, "_", folderpattern))),
                      pattern = "outputtables", full.names = TRUE, ignore.case = TRUE)
   b<-a[(grepl(pattern =paste0(yr, "To"), x = a))]
   b<-list.files(path = b, pattern = "_US_", full.names = TRUE)
-  b<-b[grep(pattern = "_Review", x = b)]
+  b<-b[grep(pattern = "_AllData", x = b)]
 
-  # b<-load(paste0(a, "/AllFigures.rdata"))
   a<-read.csv(file = b)
-  rownames(a)<-a$X
-  a$X<-NULL
+  a<-a[a$Year %in% c(minyr:maxyr), ]
 
-  a<-a[,(grepl(pattern = "PI",x = names(a)) |
-          grepl(pattern = "Q[0-9]+_",x = names(a)) |
-          grepl(pattern = "Q_Total",x = names(a)) #|
-          # grepl(pattern = "QI",x = names(a))
-         )]
+  a<-a[,c("Year", "cat", "v", paste0("PI_", idx),paste0("Q_", idx))]
+  a<-dplyr::rename(a, 
+                PI = paste0("PI_", idx), 
+                Q = paste0("Q_", idx), 
+                V = "v")
+  
+  a$PI<-round(x = a$PI, digits = 2)
+  a$Q<-round(x = a$Q/1e6, digits = 2)
+  a$V<-round(x = a$V/1e6, digits = 2)
 
-  aa<-cbind.data.frame(data.frame(a[,grepl(pattern = "Total", x = names(a))]),
-                      data.frame(a[,!(grepl(pattern = "Total", x = names(a)))]))
-  names(aa)<-c(names(a)[grepl(pattern = "Total", x = names(a))],
-              names(a)[!(grepl(pattern = "Total", x = names(a)))])
-  a<-aa
-  groups<-unlist(lapply(strsplit(split = "_", x = names(a)), `[[`, 2))
-  names(a)<-gsub(pattern = "[0-9]+", replacement = "", x = names(a))
-  names(a)<-gsub(pattern = "_[a-zA-Z]+", replacement = "", x = names(a))
+                       
+  a.pi<-spread(a[!(names(a) %in% c("V", "Q"))], cat, PI)
+  names(a.pi)[-1]<-paste0(names(a.pi)[-1], "_PI")
+  a.q<-spread(a[!(names(a) %in% c("PI", "V"))], cat, Q)
+  names(a.q)[-1]<-paste0(names(a.q)[-1], "_Q")
+  a.v<-spread(a[!(names(a) %in% c("PI", "Q"))], cat, V)
+  names(a.v)[-1]<-paste0(names(a.v)[-1], "_V")
 
-  a[,(names(a) == "Q")]<-a[,(names(a) == "Q")]/1e6
+  a<-left_join(a.pi, a.q, by = c("Year"))
+  a<-left_join(a, a.v, by = c("Year"))
+  # a<-a[order(a$Year, decreasing = TRUE),]
+  # rownames(a)<-a$Year
+  # a$Year<-NULL
 
-  if (sum(names(a) == "PI")>0) {
-  for (i in 1:length(which(names(a) == "PI"))){
-    a[,which(names(a) == "PI")[i]]<-a[,which(names(a) == "PI")[i]]/a[1,which(names(a) == "PI")[i]]
-  }
-  }
-  #   for (i in 1:length(which(names(a) == "QI"))){
-  #   a[,which(names(a) == "QI")[i]]<-a[,which(names(a) == "QI")[i]]/a[1,which(names(a) == "QI")[i]]
-  # }
+    a<-a[,match(x = c("Year", 
+                    names(a)[grep(pattern = "_V", x = names(a), ignore.case = T)], 
+                    names(a)[grep(pattern = "_PI", x = names(a), ignore.case = T)], 
+                    names(a)[grep(pattern = "_Q", x = names(a), ignore.case = T)]), 
+              names(a))]
+    
+  a<-a[,match(x = c("Year", 
+                    names(a)[grep(pattern = "Total", x = names(a))], 
+                    names(a)[grep(pattern = "fin", x = names(a), ignore.case = T)], 
+                    names(a)[grep(pattern = "Shell", x = names(a), ignore.case = T)]), 
+              names(a))]
+  
+    typology<-data.frame(col_keys = names(a), 
+                       colB = unlist(c("", lapply(X = strsplit(x = names(a)[-1], split = "_"), `[[`, 1) )), 
+                       colA = unlist(c("Year", lapply(X = strsplit(x = names(a)[-1], split = "_"), `[[`, 2)))
+                       )  
+    
+    typology$colA[typology$colA %in% "PI"]<-"Price Index"
+    typology$colA[typology$colA %in% "Q"]<-"Real Value"
+    typology$colA[typology$colA %in% "V"]<-"Nominal Value"
 
-  g<-t(data.frame(table(groups)))
-  g<-g[,match(table = g[1,], x = unique(groups))]
+ft <- flextable(a, col_keys = names(a) ) 
+ft<-set_header_df(ft, mapping = typology, key = "col_keys" )
+ft<-merge_h(ft, part = "header")
+ft<-merge_v(ft, part = "header") 
 
-
-a %>%
-  tibble::rownames_to_column() %>%
-  flextable() %>%
-  set_header_labels(rowname = "") %>%
-  add_header_row(values = c("", g[1,]),
-                 colwidths = c(1, as.numeric(g[2,]))) %>%
-   theme_box() %>% autofit()
-}
+ft<-ft %>%
+  theme_box() %>% 
+  autofit() %>% 
+  empty_blanks()
 
 
 if (designflowin %in% F){
-keydatatable(Date0 = Sys.Date(), yr = minyr, maxyr = maxyr, 
-             folderpattern = "", dir.output)
-
+  ft
 }
+
+write.csv(x = a, file = paste0(dir.temp, "T3_NationalLandingValuesAndPriceIndex.csv"))
+
 ```
 
-#### Graph [1]. National Landing Values (Implicit Quantity in [`r minyr`] $ Million), `r minyr`-`r maxyr` 
+
+\newpage
+
+
+#### Graph [1]. National Landing Values (Implicit Quantity in `r baseyr` $ Million), `r minyr`-`r maxyr` 
 
 ```{r p6}
 
-a<-data.frame(Year = minyr:maxyr)
+# a<-data.frame(Year = minyr:maxyr)
 
-temp<-read.xlsx(file = bb[grep(pattern = "_Review", x = bb)], sheetName = reg.order[1])
+temp<-read.xlsx(file = bb[grep(pattern = "_AllData", x = bb)], sheetName = reg.order[1])
 
-Q<-cbind.data.frame(temp$Q_Total,
-  temp[,grep(x = names(temp), pattern = "Q[0-9]+_")])
-Q<-round(x = Q/1e6, digits = 2)
+a<-temp[, c("Year", "cat", paste0("Q_", idx))]
+a<-a[a$Year %in% c(minyr:maxyr), ]
 
-a<-cbind.data.frame(a, Q)
+a[, paste0("Q_", idx)]<-round(x = a[, paste0("Q_", idx)]/1e6, digits = 2)
 
-names(a)<-gsub(pattern = "[0-9]+", replacement = "", x = names(a))
-names(a)<-gsub(pattern = "temp\\$", replacement = "", x = names(a))
-names(a)<-gsub(pattern = "Q_", replacement = "", x = names(a))
+names(a)<-c("Year", "Category", "val")
 
-a<-a[,match(table = names(a),
-            x = c("Year","Total",
-                  "Finfish", "Shellfish"))]
-
-
-a0<-a
-a <- gather(a0, Category, val, names(a0)[-1], factor_key=TRUE)
-
+# a<-a[,match(table = names(a),
+#             x = c("Year","Total",
+#                   "Finfish", "Shellfish"))]
+# 
+# 
+# a0<-a
+# a <- gather(a0, Category, val, names(a0)[-1], factor_key=TRUE)
+# 
 a$cat<-a$Category
 
 temp0<-a
@@ -219,20 +280,24 @@ if (designflowin %in% F){
 } 
 
 # counter<-funct_counter(counter)
-# ggsave(g,
-#        filename = paste0(dir.figures, filename0, "_", counter, "_G4_Figure.pdf"),
-#        width = 4, height = 4)
+ggsave(g,
+       filename = paste0(dir.temp, "G1_NationalLandingValues.pdf"),
+       width = 4, height = 4)
 
 ```
 
-#### Graph [2]. Total Quantity Index for Each Region (`r minyr` = 1), `r minyr`-`r maxyr`
+\newpage
+
+
+#### Graph [2]. Total Quantity Index for Each Region (`r baseyr` = 1), `r minyr`-`r maxyr`
 
 ```{r p7}
 
 a<-data.frame(Year = minyr:maxyr)
 for (i in 2:length(reg.order)){
   temp<-read.xlsx(file = bb[grep(pattern = "_FinalOutput", x = bb)], sheetName = reg.order[i])
-  a<-cbind.data.frame(a, temp[,names(temp) %in% "Q_Total"])
+  temp<-temp[temp$Year %in% c(minyr:maxyr), ]
+  a<-cbind.data.frame(a, temp[,names(temp) %in% paste0("QI_", idx)])
 }
 names(a)<-c("Year", reg.order[2:length(reg.order)])
 
@@ -249,10 +314,9 @@ if (designflowin %in% F){
   g
 } 
 
-# counter<-funct_counter(counter)
-# ggsave(g,
-#        filename = paste0(dir.figures, filename0, "_", counter, "_G4_Figure.pdf"),
-#        width = 4, height = 4)
+ggsave(g,
+       filename = paste0(dir.temp, "G2_TotalQuantityIndexForEachRegion.pdf"),
+       width = 4, height = 4)
 
 ```
 
