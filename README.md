@@ -3,14 +3,21 @@ Measuring Output for U.S. Commercial Fisheries From Theory to Practice
 
 **Emily Markowitz**<sup>1</sup> (Emily.Markowitz AT noaa.gov)
 
-**Sun Ling Wang**<sup>2</sup> (Sun-Ling.Wang AT noaa.gov)
+**Sun Ling Wang**<sup>2</sup> (sunling.wang AT usda.gov)
 
-<sup>1</sup>Alaska Fisheries Science Center, National Marine
-Fisheries Service, National Oceanic and Atmospheric Administration,
-Seattle, WA 98195
+**John Walden**<sup>3</sup> (John.Walden AT noaa.gov)
 
-<sup>2</sup>On detail with the NOAA Fisheries Office of Science and
-Technology Economics & Social Analysis Division
+<sup>1</sup>Alaska Fisheries Science Center, 
+National Marine Fisheries Service, National Oceanic and Atmospheric Administration,
+Seattle, WA 98195. 
+Work completed as a contractor with ECS in the NOAA Fisheries Office of Science and Technology Economics & Social Analysis Division
+
+<sup>2</sup>On detail with the NOAA Fisheries Office of Science and Technology Economics & Social Analysis Division. 
+United States Department of Agriculture, Economic Research Service 
+
+<sup>3</sup>Northeast Fisheries Science Center, 
+National Marine Fisheries Service, National Oceanic and Atmospheric Administration,
+Woods Hole, MA
 
 > The views expressed are those of the author and should not be attributed to the NOAA, ECS or ERS
 
